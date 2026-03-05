@@ -1,0 +1,43 @@
+{
+  "state": {
+    "player": {
+      "hp": 52,
+      "max_hp": 80,
+      "block": 0,
+      "energy": 1
+    },
+    "enemies": [
+      {
+        "name": "Louse",
+        "hp": 11,
+        "block": 0,
+        "intent": "attack",
+        "intent_value": 5
+      }
+    ],
+    "hand": [
+      {
+        "name": "Bash",
+        "cost": 2,
+        "card_type": "attack",
+        "damage": 8,
+        "block": 0,
+        "exhausts": false,
+        "upgraded": false
+      },
+      {
+        "name": "Strike",
+        "cost": 1,
+        "card_type": "attack",
+        "damage": 6,
+        "block": 0,
+        "exhausts": false,
+        "upgraded": false
+      }
+    ],
+    "draw_pile": 9,
+    "discard_pile": 1,
+    "turn": 2
+  },
+  "expected_card": "Strike"
+}

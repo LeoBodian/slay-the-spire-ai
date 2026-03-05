@@ -1,0 +1,43 @@
+{
+  "state": {
+    "player": {
+      "hp": 16,
+      "max_hp": 80,
+      "block": 0,
+      "energy": 1
+    },
+    "enemies": [
+      {
+        "name": "Jaw Worm",
+        "hp": 40,
+        "block": 0,
+        "intent": "attack",
+        "intent_value": 12
+      }
+    ],
+    "hand": [
+      {
+        "name": "Strike",
+        "cost": 1,
+        "card_type": "attack",
+        "damage": 6,
+        "block": 0,
+        "exhausts": false,
+        "upgraded": false
+      },
+      {
+        "name": "Defend",
+        "cost": 1,
+        "card_type": "skill",
+        "damage": 0,
+        "block": 5,
+        "exhausts": false,
+        "upgraded": false
+      }
+    ],
+    "draw_pile": 8,
+    "discard_pile": 2,
+    "turn": 4
+  },
+  "expected_card": "Defend"
+}
