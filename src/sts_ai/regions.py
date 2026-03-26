@@ -14,10 +14,8 @@ from .models import ScreenRegion
 # (x, y, width, height) — calibrated on a 1920×1080 window.
 # Tweak these or load overrides from a config file for your setup.
 REGIONS: dict[str, ScreenRegion] = {
-    "player_hp": ScreenRegion(name="player_hp", x=350, y=860, w=130, h=36),
-    "player_block": ScreenRegion(
-        name="player_block", x=310, y=810, w=60, h=36
-    ),
+    "player_hp": ScreenRegion(name="player_hp", x=80, y=10, w=190, h=46),
+    "player_block": ScreenRegion(name="player_block", x=60, y=110, w=70, h=40),
     "energy": ScreenRegion(name="energy", x=152, y=870, w=70, h=50),
     "hand_area": ScreenRegion(name="hand_area", x=250, y=920, w=1420, h=160),
     "draw_pile": ScreenRegion(name="draw_pile", x=50, y=960, w=80, h=40),
@@ -30,12 +28,14 @@ REGIONS: dict[str, ScreenRegion] = {
     "enemy_intent_area": ScreenRegion(
         name="enemy_intent_area", x=900, y=140, w=900, h=80
     ),
-    "gold": ScreenRegion(name="gold", x=1700, y=60, w=120, h=36),
-    "floor": ScreenRegion(name="floor", x=20, y=60, w=100, h=36),
+    "gold": ScreenRegion(name="gold", x=220, y=4, w=120, h=52),
+    "floor": ScreenRegion(name="floor", x=1780, y=40, w=110, h=50),
     "map_area": ScreenRegion(name="map_area", x=200, y=100, w=1520, h=880),
     "reward_area": ScreenRegion(
         name="reward_area", x=560, y=250, w=800, h=500
     ),
+    "neow_area": ScreenRegion(name="neow_area", x=420, y=240, w=1080, h=500),
+    "proceed_btn": ScreenRegion(name="proceed_btn", x=470, y=990, w=980, h=88),
     "end_turn_btn": ScreenRegion(
         name="end_turn_btn", x=1630, y=860, w=190, h=60
     ),

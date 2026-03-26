@@ -4,9 +4,18 @@ import json
 
 import numpy as np
 
+import sts_ai.parser as parser_module
 from sts_ai.capture import CaptureFrame
 from sts_ai.models import GameObservation, GamePhase, ScreenRegion
-from sts_ai.parser import _parse_fraction, _parse_int, detect_game_phase, parse_frame
+from sts_ai.parser import (
+    _parse_fraction,
+    _parse_int,
+    _scale_regions_for_frame,
+    detect_game_phase,
+    extract_neow_highlight_index,
+    parse_frame,
+)
+from sts_ai.policy import HeuristicPolicy
 from sts_ai.regions import REGIONS, get_region, load_regions
 
 # ---------------------------------------------------------------------------
@@ -128,6 +137,72 @@ def test_detect_game_phase_map_from_high_variance_area() -> None:
     assert phase == GamePhase.MAP
 
 
+def test_detect_game_phase_neow_from_ocr_keywords(monkeypatch) -> None:
+    frame = _dummy_frame()
+
+    def _fake_ocr(_frame, _region) -> str:
+        return "Neow offers your blessing"
+
+    monkeypatch.setattr(parser_module, "_ocr_region", _fake_ocr)
+
+    phase = detect_game_phase(frame, REGIONS)
+
+    assert phase == GamePhase.NEOW
+
+
+def test_detect_game_phase_neow_from_architect_phrase(monkeypatch) -> None:
+    frame = _dummy_frame()
+
+    def _fake_ocr(_frame, _region) -> str:
+        return "...kill... the... ARCHITECT"
+
+    monkeypatch.setattr(parser_module, "_ocr_region", _fake_ocr)
+
+    phase = detect_game_phase(frame, REGIONS)
+
+    assert phase == GamePhase.NEOW
+
+
+def test_extract_neow_highlight_index_prefers_bright_row() -> None:
+    frame = _dummy_frame()
+    neow = REGIONS["neow_area"]
+
+    x0 = neow.x + int(neow.w * 0.55)
+    x1 = neow.x + int(neow.w * 0.80)
+    rows = [
+        (neow.y + int(neow.h * 0.20), neow.y + int(neow.h * 0.36)),
+        (neow.y + int(neow.h * 0.42), neow.y + int(neow.h * 0.58)),
+        (neow.y + int(neow.h * 0.64), neow.y + int(neow.h * 0.80)),
+    ]
+
+    for idx, (y0, y1) in enumerate(rows):
+        value = 90 if idx != 1 else 210
+        frame[y0:y1, x0:x1] = value
+
+    assert extract_neow_highlight_index(frame, REGIONS) == 1
+
+
+def test_detect_game_phase_proceed_from_ocr_keywords(monkeypatch) -> None:
+    frame = _dummy_frame()
+
+    def _fake_ocr(_frame, region) -> str:
+        if region.name == "proceed_btn":
+            return "Proceed"
+        return ""
+
+    monkeypatch.setattr(parser_module, "_ocr_region", _fake_ocr)
+
+    phase = detect_game_phase(frame, REGIONS)
+
+    assert phase == GamePhase.PROCEED
+
+
+def test_scale_regions_for_frame_scales_dimensions() -> None:
+    scaled = _scale_regions_for_frame(REGIONS, frame_width=960, frame_height=540)
+    assert scaled["player_hp"].x == REGIONS["player_hp"].x // 2
+    assert scaled["player_hp"].y == REGIONS["player_hp"].y // 2
+
+
 # ---------------------------------------------------------------------------
 # CaptureFrame container
 # ---------------------------------------------------------------------------
@@ -138,3 +213,10 @@ def test_capture_frame_dimensions() -> None:
     frame = CaptureFrame(pixels=pixels, source="test")
     assert frame.width == 800
     assert frame.height == 600
+
+
+def test_heuristic_policy_map_fallback_without_nodes() -> None:
+    policy = HeuristicPolicy()
+    observation = GameObservation(phase=GamePhase.MAP)
+
+    assert policy.choose_map_path(observation) == 3

@@ -20,13 +20,16 @@ class PolicyBase:
         raise NotImplementedError()
 
     def choose_map_path(self, observation: GameObservation) -> int | None:  # noqa: ARG002
-        return 0 if observation.map_nodes else None
+        return 0 if observation.map_nodes else 3
 
     def choose_card_reward(self, observation: GameObservation) -> int | None:  # noqa: ARG002
         return 0 if observation.rewards else None
 
     def choose_rest_action(self, observation: GameObservation) -> str:  # noqa: ARG002
         return "rest"
+
+    def choose_neow_blessing(self, observation: GameObservation) -> int | None:  # noqa: ARG002
+        return 0
 
 
 class HeuristicPolicy(PolicyBase):
@@ -105,7 +108,7 @@ class HeuristicPolicy(PolicyBase):
     def choose_map_path(self, observation: GameObservation) -> int | None:
         """Pick a map node index from currently available nodes."""
         if not observation.map_nodes:
-            return None
+            return 3
 
         hp_ratio = None
         if observation.combat is not None:

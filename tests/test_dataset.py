@@ -17,6 +17,8 @@ def test_episode_roundtrip_and_arrays(tmp_path: Path) -> None:
     recorder.add_transition(
         observation=obs_1,
         action=PlannedAction(card_name="Strike", target=None, score=1.0, rationale="test"),
+        choice_label="neow",
+        choice_index=1,
         reward=2.5,
         next_observation=obs_2,
         done=False,
@@ -35,3 +37,5 @@ def test_episode_roundtrip_and_arrays(tmp_path: Path) -> None:
     assert arrays["rewards"].shape[0] == 1
     assert arrays["dones"].shape[0] == 1
     assert arrays["actions"][0] == "Strike"
+    assert arrays["choice_labels"][0] == "neow"
+    assert arrays["choice_indices"][0] == 1

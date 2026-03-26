@@ -42,6 +42,9 @@ class FakeInputAdapter:
     def click_end_turn(self) -> None:
         self.calls.append(("end_turn", 0, 0))
 
+    def click_proceed_button(self) -> None:
+        self.calls.append(("proceed", 0, 0))
+
     def click_map_node(self, index: int, node_count: int) -> None:
         self.calls.append(("map", index, node_count))
 
@@ -122,6 +125,32 @@ def test_game_agent_ends_turn_when_policy_returns_none() -> None:
     assert input_adapter.calls == [("end_turn", 0, 0)]
 
 
+def test_game_agent_sparse_combat_fallback_clicks_card_and_enemy() -> None:
+    observation = GameObservation(
+        phase=GamePhase.COMBAT,
+        combat=CombatState(
+            player=PlayerState(hp=60, max_hp=80, block=0, energy=3),
+            enemies=[],
+            hand=[],
+        ),
+    )
+    capture = FakeCaptureAdapter([observation])
+    input_adapter = FakeInputAdapter(calls=[])
+    policy = FakePolicy(action=None)
+
+    agent = GameAgent(
+        policy=policy,
+        capture_adapter=capture,
+        input_adapter=input_adapter,
+        loop_delay=0.0,
+    )
+    agent.step()
+
+    assert ("card", 0, 5) in input_adapter.calls
+    assert ("enemy", 0, 1) in input_adapter.calls
+    assert ("end_turn", 0, 0) not in input_adapter.calls
+
+
 def test_game_agent_skips_actions_outside_combat() -> None:
     capture = FakeCaptureAdapter([GameObservation(phase=GamePhase.MAP, combat=None)])
     input_adapter = FakeInputAdapter(calls=[])
@@ -135,7 +164,7 @@ def test_game_agent_skips_actions_outside_combat() -> None:
     )
     agent.step()
 
-    assert input_adapter.calls == []
+    assert any(call[0] == "map" for call in input_adapter.calls)
 
 
 def test_game_agent_clicks_map_node_when_available() -> None:
@@ -159,6 +188,26 @@ def test_game_agent_clicks_map_node_when_available() -> None:
     agent.step()
 
     assert any(call[0] == "map" for call in input_adapter.calls)
+
+
+def test_game_agent_clamps_map_index_for_fallback_nodes() -> None:
+    class MapPolicy(FakePolicy):
+        def choose_map_path(self, observation: GameObservation) -> int | None:  # noqa: ARG002
+            return 99
+
+    capture = FakeCaptureAdapter([GameObservation(phase=GamePhase.MAP)])
+    input_adapter = FakeInputAdapter(calls=[])
+    policy = MapPolicy(action=None)
+
+    agent = GameAgent(
+        policy=policy,
+        capture_adapter=capture,
+        input_adapter=input_adapter,
+        loop_delay=0.0,
+    )
+    agent.step()
+
+    assert ("map", 6, 7) in input_adapter.calls
 
 
 def test_game_agent_clicks_reward_option_when_available() -> None:
@@ -199,3 +248,37 @@ def test_game_agent_clicks_rest_action() -> None:
     agent.step()
 
     assert any(call[0] == "rest" for call in input_adapter.calls)
+
+
+def test_game_agent_clicks_neow_option() -> None:
+    observation = GameObservation(phase=GamePhase.NEOW)
+    capture = FakeCaptureAdapter([observation])
+    input_adapter = FakeInputAdapter(calls=[])
+    policy = FakePolicy(action=None)
+
+    agent = GameAgent(
+        policy=policy,
+        capture_adapter=capture,
+        input_adapter=input_adapter,
+        loop_delay=0.0,
+    )
+    agent.step()
+
+    assert any(call[0] == "reward" for call in input_adapter.calls)
+
+
+def test_game_agent_clicks_proceed_button() -> None:
+    observation = GameObservation(phase=GamePhase.PROCEED)
+    capture = FakeCaptureAdapter([observation])
+    input_adapter = FakeInputAdapter(calls=[])
+    policy = FakePolicy(action=None)
+
+    agent = GameAgent(
+        policy=policy,
+        capture_adapter=capture,
+        input_adapter=input_adapter,
+        loop_delay=0.0,
+    )
+    agent.step()
+
+    assert any(call[0] == "proceed" for call in input_adapter.calls)

@@ -18,6 +18,8 @@ from .policy import PlannedAction
 class Transition:
     observation: GameObservation
     action: PlannedAction | None
+    choice_label: str | None
+    choice_index: int | None
     reward: float
     next_observation: GameObservation | None
     done: bool
@@ -46,6 +48,8 @@ class EpisodeRecorder:
         self,
         observation: GameObservation,
         action: PlannedAction | None,
+        choice_label: str | None,
+        choice_index: int | None,
         reward: float,
         next_observation: GameObservation | None,
         done: bool,
@@ -54,6 +58,8 @@ class EpisodeRecorder:
             Transition(
                 observation=observation,
                 action=action,
+                choice_label=choice_label,
+                choice_index=choice_index,
                 reward=reward,
                 next_observation=next_observation,
                 done=done,
@@ -73,6 +79,8 @@ def _transition_to_jsonable(transition: Transition) -> dict:
     return {
         "observation": transition.observation.model_dump(mode="json"),
         "action": None if transition.action is None else asdict(transition.action),
+        "choice_label": transition.choice_label,
+        "choice_index": transition.choice_index,
         "reward": transition.reward,
         "next_observation": None
         if transition.next_observation is None
@@ -140,6 +148,8 @@ def load_episodes(directory: str | Path) -> list[Episode]:
                     Transition(
                         observation=GameObservation.model_validate(row["observation"]),
                         action=action,
+                        choice_label=row.get("choice_label"),
+                        choice_index=row.get("choice_index"),
                         reward=float(row["reward"]),
                         next_observation=_decode_observation(row.get("next_observation")),
                         done=bool(row["done"]),
@@ -164,6 +174,8 @@ def episodes_to_arrays(episodes: list[Episode]) -> dict[str, np.ndarray]:
     dones: list[int] = []
     floors: list[int] = []
     actions: list[str] = []
+    choice_labels: list[str] = []
+    choice_indices: list[int] = []
 
     for episode in episodes:
         for transition in episode.transitions:
@@ -171,10 +183,18 @@ def episodes_to_arrays(episodes: list[Episode]) -> dict[str, np.ndarray]:
             dones.append(1 if transition.done else 0)
             floors.append(transition.observation.floor)
             actions.append("" if transition.action is None else transition.action.card_name)
+            choice_labels.append(
+                "" if transition.choice_label is None else transition.choice_label
+            )
+            choice_indices.append(
+                -1 if transition.choice_index is None else transition.choice_index
+            )
 
     return {
         "rewards": np.array(rewards, dtype=np.float32),
         "dones": np.array(dones, dtype=np.int8),
         "floors": np.array(floors, dtype=np.int16),
         "actions": np.array(actions, dtype=object),
+        "choice_labels": np.array(choice_labels, dtype=object),
+        "choice_indices": np.array(choice_indices, dtype=np.int16),
     }

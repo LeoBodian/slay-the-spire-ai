@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 
 class GamePhase(str, Enum):
     MAIN_MENU = "main_menu"
+    NEOW = "neow"
+    PROCEED = "proceed"
     MAP = "map"
     COMBAT = "combat"
     REWARD = "reward"

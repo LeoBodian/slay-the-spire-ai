@@ -31,6 +31,9 @@ class PolicyLike(Protocol):
     def choose_rest_action(self, observation: GameObservation) -> str:
         ...
 
+    def choose_neow_blessing(self, observation: GameObservation) -> int | None:
+        ...
+
 
 class GameAgent:
     """Run repeated capture -> decide -> act cycles."""
@@ -71,6 +74,17 @@ class GameAgent:
         if combat is None:
             return None
 
+        if not combat.hand:
+            # Parser fallback: attempt a safe card+target click when hand OCR is empty.
+            self._input.click_card(index=0, hand_size=5)
+            self._input.click_enemy(index=0, enemy_count=max(len(combat.enemies), 1))
+            return PlannedAction(
+                card_name="__fallback_card_0__",
+                target=None,
+                score=0.0,
+                rationale="sparse combat parse fallback",
+            )
+
         action = self._policy.choose_action(combat)
         if action is None:
             self._input.click_end_turn()
@@ -101,31 +115,78 @@ class GameAgent:
 
         return action
 
-    def _execute_non_combat(self, observation: GameObservation) -> None:
+    def _execute_non_combat(self, observation: GameObservation) -> tuple[str | None, int | None]:
         """Execute map/reward/rest interactions when possible."""
-        if observation.phase == GamePhase.MAP and observation.map_nodes:
+        if observation.phase == GamePhase.NEOW:
+            choose_neow = getattr(self._policy, "choose_neow_blessing", None)
+            option_index = choose_neow(observation) if callable(choose_neow) else 0
+            if option_index is not None:
+                highlight_neow = getattr(self._input, "highlight_neow_option_with_arrows", None)
+                confirm_neow = getattr(self._input, "confirm_with_enter", None)
+                if callable(highlight_neow) and callable(confirm_neow):
+                    highlight_neow(option_index)
+                    confirm_neow()
+                    return ("neow", option_index)
+
+                press_neow = getattr(self._input, "press_neow_option_hotkey", None)
+                if callable(press_neow):
+                    press_neow(option_index)
+                    return ("neow", option_index)
+
+                option_count = max(len(observation.rewards), 3)
+                click_neow = getattr(self._input, "click_neow_option", None)
+                if callable(click_neow):
+                    click_neow(option_index, option_count)
+                else:
+                    self._input.click_reward_option(option_index, option_count)
+                return ("neow", option_index)
+            return (None, None)
+
+        if observation.phase == GamePhase.MAP:
             choose_map = getattr(self._policy, "choose_map_path", None)
             map_index = choose_map(observation) if callable(choose_map) else 0
             if map_index is not None:
-                self._input.click_map_node(map_index, len(observation.map_nodes))
-            return
+                node_count = len(observation.map_nodes) if observation.map_nodes else 7
+                clamped_index = max(0, min(map_index, node_count - 1))
+                self._input.click_map_node(clamped_index, node_count)
+                return ("map", clamped_index)
+            return (None, None)
+
+        if observation.phase == GamePhase.PROCEED:
+            highlight = getattr(self._input, "highlight_proceed_button", None)
+            confirm = getattr(self._input, "confirm_with_enter", None)
+            if callable(highlight):
+                highlight()
+            if callable(confirm):
+                confirm()
+            else:
+                click_proceed = getattr(self._input, "click_proceed_button", None)
+                if callable(click_proceed):
+                    click_proceed()
+                else:
+                    self._input.click_reward_option(index=0, option_count=1)
+            return ("proceed", 0)
 
         if observation.phase == GamePhase.REWARD and observation.rewards:
             choose_reward = getattr(self._policy, "choose_card_reward", None)
             reward_index = choose_reward(observation) if callable(choose_reward) else 0
             if reward_index is not None:
                 self._input.click_reward_option(reward_index, len(observation.rewards))
-            return
+                return ("reward", reward_index)
+            return (None, None)
 
         if observation.phase == GamePhase.REST:
             choose_rest = getattr(self._policy, "choose_rest_action", None)
             action = choose_rest(observation) if callable(choose_rest) else "rest"
             self._input.click_rest_action(action)
-            return
+            return ("rest", 0 if action.casefold() == "rest" else 1)
 
         if observation.phase in {GamePhase.EVENT, GamePhase.SHOP}:
             # Conservative default: click first option lane in reward panel area.
             self._input.click_reward_option(index=0, option_count=1)
+            return (observation.phase.value, 0)
+
+        return (None, None)
 
     def step(self) -> GameObservation:
         """Run one loop step and return the parsed observation."""
@@ -155,6 +216,8 @@ class GameAgent:
         recorder = EpisodeRecorder.start()
         prev_observation: GameObservation | None = None
         prev_action: PlannedAction | None = None
+        prev_choice_label: str | None = None
+        prev_choice_index: int | None = None
         final_observation: GameObservation | None = None
 
         for _ in range(max_steps):
@@ -166,20 +229,28 @@ class GameAgent:
                 recorder.add_transition(
                     observation=prev_observation,
                     action=prev_action,
+                    choice_label=prev_choice_label,
+                    choice_index=prev_choice_index,
                     reward=reward,
                     next_observation=current_observation,
                     done=done,
                 )
 
             chosen_action: PlannedAction | None = None
+            chosen_choice_label: str | None = None
+            chosen_choice_index: int | None = None
             if not done and current_observation.phase == GamePhase.COMBAT:
                 chosen_action = self._choose_and_execute_combat(current_observation)
             elif not done:
-                self._execute_non_combat(current_observation)
+                chosen_choice_label, chosen_choice_index = self._execute_non_combat(
+                    current_observation
+                )
 
             self._log_event(current_observation, chosen_action)
             prev_observation = current_observation
             prev_action = chosen_action
+            prev_choice_label = chosen_choice_label
+            prev_choice_index = chosen_choice_index
             final_observation = current_observation
 
             if done:
