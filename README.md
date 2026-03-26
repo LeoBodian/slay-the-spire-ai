@@ -114,6 +114,15 @@ sts-ai benchmark --games 20 --policy search --checkpoint checkpoints/latest.pt -
 - CI-oriented automation scripts in `.vscode/`
 - Architecture ready for richer vision parsing and advanced RL training
 
+## Resume Highlights
+
+- Built a modular game-AI system across 15+ Python modules covering capture, parsing, policy, search, training, and benchmarking.
+- Implemented 9 CLI workflows (`evaluate`, `parse`, `capture`, `calibrate`, `play`, `collect`, `train`, `benchmark`, `smoke`) for reproducible experimentation.
+- Added policy stack progression from heuristics to model-backed inference and beam-search planning over a custom simulator.
+- Designed episode dataset and reward-shaping pipeline for offline supervised/value training.
+- Established automated quality gates with 40+ tests, regression fixtures, and CI-oriented smoke/lint/test tasks.
+- Delivered production-minded developer experience with VS Code tasks, script-backed checks, and benchmark JSON/CSV exports.
+
 ## License
 
 MIT (see `LICENSE`)
